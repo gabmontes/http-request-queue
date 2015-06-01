@@ -1,0 +1,13 @@
+{
+  "name": "http-request-queue",
+  "dependencies": {
+    "eventemitter2": "~0.4.14"
+  },
+  "devDependencies": {
+    "requirejs": "~2.1.17",
+    "mocha": "~2.2.5",
+    "chai": "~2.3.0",
+    "jquery": "~2.1.4",
+    "bluebird": "~2.9.26"
+  }
+}
