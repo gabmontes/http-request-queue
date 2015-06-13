@@ -1,6 +1,7 @@
 define([
-    'bower_components/eventemitter2/lib/eventemitter2'
-], function (EventEmitter) {
+    'bower_components/eventemitter2/lib/eventemitter2',
+    'strategies/sequentialPost'
+], function (EventEmitter, sequentialPost) {
     'use strict';
 
     function mix(obj1, obj2) {
@@ -12,28 +13,18 @@ define([
         return obj1;
     }
 
-    // status flags
-    var NOT_SENT = 0,
-        PENDING = 1,
-        RETRY = 2;
-
     function RequestQueue(request, Promise, options) {
         // options
         this.options = mix({
-            strategy: RequestQueue.strategies.RUN_PRIORITY,
+            strategy: sequentialPost,
             retryTimeout: 1000,
             maxRetries: 300,
             log: function () {}
         }, options);
-        // check strategy
-        if (this.options.strategy !== RequestQueue.strategies.RUN_PRIORITY &&
-            this.options.strategy !== RequestQueue.strategies.RUN_SEQUENTIAL &&
-            this.options.strategy !== RequestQueue.strategies.RUN_PARALLEL) {
-            throw new Error('Unknown strategy');
-        }
         // references
         this._request = request;
         this._Promise = Promise;
+        this._runner = this.options.strategy;
         // queue
         this._requestQueue = [];
         this._requestId = 0;
@@ -64,7 +55,8 @@ define([
             case 'GET':
             case 'DELETE':
             case 'POST':
-                req.status = PENDING;
+                req.status.pending = true;
+                req.status.retry = false;
                 var options = {
                     type: req.method,
                     url: req.url,
@@ -78,7 +70,8 @@ define([
                         that._log('(' + req.id + ') request returned with error');
                         // server (5xx) or network error, shall retry
                         if (!err) {
-                            req.status = RETRY;
+                            req.status.pending = false;
+                            req.status.retry = true;
                             if (++req.retries <= that.options.maxRetries) {
                                 setTimeout(that._run.bind(that), that.options.retryTimeout);
                                 return;
@@ -98,51 +91,12 @@ define([
         }
     };
 
-    RequestQueue.prototype._runFirst = function () {
-        // if any in the queue, run the first
-        if (!this._requestQueue.length) {
-            return;
-        }
-        var req = this._requestQueue[0];
-        // if first is pending, wait
-        if (req.status === PENDING) {
-            this._log('still pending requests');
-            return;
-        }
-        this._sendRequest(req);
-    };
-    RequestQueue.prototype._runPostInSequence = function () {
-        // fire all gets & deletes
-        this._requestQueue.filter(function (req) {
-            return req.method !== 'POST' && (req.status === NOT_SENT || req.status === RETRY);
-        }).forEach(this._sendRequest.bind(this));
-        // fire first post only
-        var seqReqs = this._requestQueue.filter(function (req) {
-            return req.method === 'POST';
-        });
-        if (seqReqs.length && seqReqs[0].status !== PENDING) {
-            this._sendRequest(seqReqs[0]);
-        }
-    };
-    RequestQueue.prototype._runAll = function () {
-        // process all new and retrying requests
-        this._requestQueue.filter(function (req) {
-            return req.status === NOT_SENT || req.status === RETRY;
-        }).forEach(this._sendRequest.bind(this));
-    };
     RequestQueue.prototype._run = function () {
+        var that = this;
         this._log('running on ' + this._requestQueue.length + ' items');
-        switch (this.options.strategy) {
-            case RequestQueue.strategies.RUN_SEQUENTIAL:
-                this._runFirst();
-                break;
-            case RequestQueue.strategies.RUN_PRIORITY:
-                this._runPostInSequence();
-                break;
-            case RequestQueue.strategies.RUN_PARALLEL:
-                this._runAll();
-                break;
-        }
+        this._runner(this._requestQueue, function (req) {
+            that._sendRequest.call(that, req);
+        });
     };
 
     RequestQueue.prototype._addToQueue = function (method, url, data, options, callback) {
@@ -154,7 +108,11 @@ define([
             data: data || null,
             options: options || {},
             callback: callback || function () {},
-            status: NOT_SENT,
+            status: {
+                sent: false,
+                pending: false,
+                retry: false
+            },
             retries: 0
         });
         this._log('queue length ' + this._requestQueue.length);
@@ -201,12 +159,6 @@ define([
             };
         }
     });
-
-    RequestQueue.strategies = {
-        RUN_PARALLEL: 0,
-        RUN_SEQUENTIAL: 1,
-        RUN_PRIORITY: 2
-    };
 
     return RequestQueue;
 });

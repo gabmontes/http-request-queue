@@ -1,8 +1,10 @@
 define([
     'chai',
     'index',
+    'strategies/sequential',
+    'strategies/all',
     'bower_components/bluebird/js/browser/bluebird'
-], function (chai, HttpRequestQueue, Promise) {
+], function (chai, HttpRequestQueue, sequentialRun, parallelRun, Promise) {
     'use strict';
 
     var assert = chai.assert;
@@ -96,7 +98,10 @@ define([
         test('create a queue', function () {
             var options = {
                 retryTimeout: 100,
-                maxRetries: 5
+                maxRetries: 5,
+                log: function (msg) {
+                    console.log(msg);
+                }
             };
             queue = new HttpRequestQueue(requestMock, Promise, options);
             assert.strictEqual(queue.status.length, 0);
@@ -235,10 +240,10 @@ define([
             };
             queuePriority = new HttpRequestQueue(requestMock, Promise, options);
 
-            options.strategy = HttpRequestQueue.strategies.RUN_SEQUENTIAL;
+            options.strategy = sequentialRun;
             queueSequence = new HttpRequestQueue(requestMock, Promise, options);
 
-            options.strategy = HttpRequestQueue.strategies.RUN_PARALLEL;
+            options.strategy = parallelRun;
             queueParallel = new HttpRequestQueue(requestMock, Promise, options);
         });
 
@@ -333,21 +338,6 @@ define([
                 assert.strictEqual(queueSequence.status.length, 0);
                 done();
             }).catch(done);
-        });
-
-        test('create a queue with bad strategy', function (done) {
-            var queue;
-            var options = {
-                strategy: HttpRequestQueue.strategies.RUN_UNKNOWN
-            };
-            try {
-                queue = new HttpRequestQueue(requestMock, Promise, options);
-                assert.fail();
-            } catch (err) {
-                assert.isObject(err);
-                assert.strictEqual(err.message, 'Unknown strategy');
-                done();
-            }
         });
     });
 

@@ -1,0 +1,6 @@
+{
+    "extends": "../.jshintrc",
+
+    "mocha": true,
+    "predef": ["require", "define", "blanket", "mocha"]
+}

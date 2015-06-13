@@ -15,16 +15,16 @@ require.config({
 
 require([
     'mocha',
-    'blanket'
+    // 'blanket'
 ], function () {
     'use strict';
 
     mocha.setup('tdd');
 
-    blanket.options({
+    /* blanket.options({
         antifilter: '[bower_components/,test/]',
         branchTracking: true
-    });
+    });*/
 
     require([
         'test/test'
