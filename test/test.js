@@ -180,7 +180,7 @@ define([
                 assert.fail();
             }).catch(function (err) {
                 assert.isObject(err);
-                assert.strictEqual(err.message, 'Unknown request method');
+                assert.strictEqual(err.message, 'Unsupported request method');
                 assert.strictEqual(queue.status.length, 0);
                 done();
             });
@@ -247,7 +247,7 @@ define([
             queueParallel = new HttpRequestQueue(requestMock, Promise, options);
         });
 
-        test('make all GETs and POSTs in sequence', function (done) {
+        test('make all GETs and then POSTs in sequence', function (done) {
             var post1done = false;
             var post2done = false;
             var get1done = false;
@@ -278,7 +278,7 @@ define([
             }).catch(done);
         });
 
-        test('make all GETs and POSTs in parallel', function (done) {
+        test('make all requests in parallel', function (done) {
             var post1done = false;
             var post2done = false;
             var get1done = false;
@@ -309,7 +309,7 @@ define([
             }).catch(done);
         });
 
-        test('make all GETs and POSTs in sequence', function (done) {
+        test('make all requests in sequence', function (done) {
             var post1done = false;
             var post2done = false;
             var get1done = false;

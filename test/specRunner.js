@@ -24,7 +24,7 @@ require([
     /* blanket.options({
         antifilter: '[bower_components/,test/]',
         branchTracking: true
-    });*/
+    }); */
 
     require([
         'test/test'

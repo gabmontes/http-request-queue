@@ -1,8 +1,8 @@
 define(function () {
-    return function (queue, send) {
+    return function (tasks) {
         // process all new and retrying requests
-        queue.filter(function (req) {
-            return !req.status.sent || req.status.retry;
-        }).forEach(send);
+        return tasks.map(function (task) {
+            return !task.running;
+        });
     };
 });
