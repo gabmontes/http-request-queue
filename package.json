@@ -1,0 +1,11 @@
+{
+  "scripts": {
+    "serve": "serve .",
+    "test": "mocha-phantomjs -s webSecurityEnabled=false test/index.html"
+  },
+  "devDependencies": {
+    "mocha-phantomjs": "^3.5.3",
+    "phantomjs": "^1.9.17",
+    "serve": "^1.4.0"
+  }
+}

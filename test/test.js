@@ -52,7 +52,7 @@ define([
         }, {
             url: 'mock.com/2',
             type: 'GET',
-            delay: 20,
+            delay: 15,
             status: 200,
             response: {data: 'value at 2'}
         }, {
@@ -65,13 +65,13 @@ define([
             url: 'mock.com/post-1',
             type: 'POST',
             data: {value: 'p1'},
-            delay: 20,
+            delay: 15,
             status: 200,
             response: {data: 'value at p1'}
         }, {
             url: 'mock.com/500-1',
             type: 'GET',
-            delay: 20,
+            delay: 15,
             status: 500,
             tries: 3,
             tried: 0,
@@ -79,12 +79,12 @@ define([
         }, {
             url: 'mock.com/404-1',
             type: 'GET',
-            delay: 20,
+            delay: 15,
             status: 404
         }, {
             url: 'mock.com/retry-1',
             type: 'GET',
-            delay: 20,
+            delay: 15,
             tries: 6,
             tried: 0,
             status: 500
@@ -94,7 +94,7 @@ define([
         }, {
             url: 'mock.com/del-1',
             type: 'DELETE',
-            delay: 20,
+            delay: 15,
             status: 200
         }];
 
@@ -206,20 +206,20 @@ define([
             type: 'POST',
             data: {value: 'ps1'},
             status: 200,
-            delay: 50,
+            delay: 90,
             response: {data: 'value ps1'}
         }, {
             url: 'mock.com/post-seq2',
             type: 'POST',
             data: {value: 'ps2'},
             status: 200,
-            delay: 20,
+            delay: 60,
             response: {data: 'value ps2'}
         }, {
             url: 'mock.com/get-seq1',
             type: 'GET',
             status: 200,
-            delay: 10,
+            delay: 30,
             response: {data: 'value at gs1'}
         }];
 
@@ -287,21 +287,27 @@ define([
                 post1done = true;
                 assert.strictEqual(queueParallel.length, 0);
                 done();
-            }).catch(done);
+            }).catch(function (err) {
+                assert.fail(err);
+            });
             queueParallel.post(post2.url).then(function (data) {
                 assert.isFalse(post1done);
                 assert.isTrue(get1done);
                 assert.strictEqual(data, post2.response);
                 post2done = true;
                 assert.strictEqual(queueParallel.length, 1);
-            }).catch(done);
+            }).catch(function (err) {
+                assert.fail(err);
+            });
             queueParallel.get(get1.url).then(function (data) {
                 assert.isFalse(post1done);
                 assert.isFalse(post2done);
                 assert.strictEqual(data, get1.response);
                 get1done = true;
                 assert.strictEqual(queueParallel.length, 2);
-            }).catch(done);
+            }).catch(function (err) {
+                assert.fail(err);
+            });
         });
 
         test('make all requests in sequence', function (done) {
@@ -317,14 +323,18 @@ define([
                 assert.strictEqual(data, post1.response);
                 post1done = true;
                 assert.strictEqual(queueSequence.length, 2);
-            }).catch(done);
+            }).catch(function (err) {
+                assert.fail(err);
+            });
             queueSequence.post(post2.url).then(function (data) {
                 assert.isTrue(post1done);
                 assert.isFalse(get1done);
                 assert.strictEqual(data, post2.response);
                 post2done = true;
                 assert.strictEqual(queueSequence.length, 1);
-            }).catch(done);
+            }).catch(function (err) {
+                assert.fail(err);
+            });
             queueSequence.get(get1.url).then(function (data) {
                 assert.isTrue(post1done);
                 assert.isTrue(post2done);
@@ -332,7 +342,9 @@ define([
                 get1done = true;
                 assert.strictEqual(queueSequence.length, 0);
                 done();
-            }).catch(done);
+            }).catch(function (err) {
+                assert.fail(err);
+            });
         });
     });
 
@@ -349,7 +361,7 @@ define([
         }, {
             url: 'mock.com/2',
             type: 'GET',
-            delay: 20,
+            delay: 15,
             status: 200,
             response: {data: 'value at 2'}
         }, {
@@ -393,13 +405,13 @@ define([
         var resources = [{
             url: 'mock.com/1',
             type: 'GET',
-            delay: 50,
+            delay: 60,
             status: 200,
             response: {data: 'value at 1'}
         }, {
             url: 'mock.com/2',
             type: 'GET',
-            delay: 25,
+            delay: 30,
             status: 200,
             response: {data: 'value at 2'}
         }];
