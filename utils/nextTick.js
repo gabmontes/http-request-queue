@@ -1,6 +1,7 @@
 // based on https://github.com/medikoo/next-tick
 
 define(function () {
+    'use strict';
 
     var callable = function (fn) {
         if (typeof fn !== 'function') {

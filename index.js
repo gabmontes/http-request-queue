@@ -84,14 +84,12 @@ define([
     };
 
     RequestQueue.prototype.filter = function (test) {
-        return this._requestQueue.queue.filter(test);
+        return this._requestQueue.filter(test);
     };
 
-    Object.defineProperty(RequestQueue.prototype, 'status', {
+    Object.defineProperty(RequestQueue.prototype, 'length', {
         get: function () {
-            return {
-                length: this._requestQueue.queue.length
-            };
+            return this._requestQueue.length;
         }
     });
 

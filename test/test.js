@@ -1,15 +1,45 @@
 define([
     'chai',
+    'bower_components/bluebird/js/browser/bluebird',
     'index',
     'strategies/sequential',
     'strategies/all',
-    'bower_components/bluebird/js/browser/bluebird'
-], function (chai, HttpRequestQueue, sequentialRun, parallelRun, Promise) {
+    'adapters/jquery-adapter'
+], function (chai, Promise, HttpRequestQueue, sequentialRun, parallelRun, jqAdapter) {
     'use strict';
 
     var assert = chai.assert;
 
-    suite('request queue with mock adapter', function () {
+    function requestMock(resources) {
+        return function (options) {
+            var resource = resources.filter(function (res) {
+                return res.url === options.url;
+            })[0];
+            assert.strictEqual(options.type, resource.type);
+            if (resource.request) {
+                assert.deepEqual(options.data, resource.request);
+            }
+            setTimeout(function () {
+                switch (resource.status) {
+                    case 200:
+                        options.success(null, resource.response);
+                        break;
+                    case 404:
+                        options.error(new Error('client error'));
+                        break;
+                    case 500:
+                        options.error(null, 500);
+                        resource.tried += 1;
+                        if (resource.tried === resource.tries) {
+                            resource.status = 200;
+                        }
+                        break;
+                }
+            }, resource.delay);
+        };
+    }
+
+    suite('basic operations', function () {
 
         var queue;
 
@@ -68,50 +98,24 @@ define([
             status: 200
         }];
 
-        function requestMock(options) {
-            var resource = resources.filter(function (res) {
-                return res.url === options.url;
-            })[0];
-            assert.strictEqual(options.type, resource.type);
-            if (resource.request) {
-                assert.deepEqual(options.data, resource.request);
-            }
-            setTimeout(function () {
-                switch (resource.status) {
-                    case 200:
-                        options.success(null, resource.response);
-                        break;
-                    case 404:
-                        options.error(new Error('client error'));
-                        break;
-                    case 500:
-                        options.error(null, 500);
-                        resource.tried += 1;
-                        if (resource.tried === resource.tries) {
-                            resource.status = 200;
-                        }
-                        break;
-                }
-            }, resource.delay);
-        }
-
-        test('create a queue', function () {
+        suiteSetup(function () {
+            var mock = requestMock(resources);
             var options = {
                 retryTimeout: 100,
-                maxRetries: 5,
-                log: function (msg) {
-                    console.log(msg);
-                }
+                maxRetries: 5
             };
-            queue = new HttpRequestQueue(requestMock, Promise, options);
-            assert.strictEqual(queue.status.length, 0);
+            queue = new HttpRequestQueue(mock, Promise, options);
+        });
+
+        test('created queue is empty', function () {
+            assert.strictEqual(queue.length, 0);
         });
 
         test('make a GET', function (done) {
             var r = resources[0];
             queue.get(r.url).then(function (data) {
                 assert.deepEqual(data, r.response);
-                assert.strictEqual(queue.status.length, 0);
+                assert.strictEqual(queue.length, 0);
                 done();
             }).catch(done);
         });
@@ -125,17 +129,17 @@ define([
             ]).then(function (data) {
                 assert.deepEqual(data[0], r1.response);
                 assert.deepEqual(data[1], r2.response);
-                assert.strictEqual(queue.status.length, 0);
+                assert.strictEqual(queue.length, 0);
                 done();
             }).catch(done);
-            assert.strictEqual(queue.status.length, 2);
+            assert.strictEqual(queue.length, 2);
         });
 
         test('make a POST', function (done) {
             var r = resources[3];
             queue.post(r.url, r.data).then(function (data) {
                 assert.deepEqual(data, r.response);
-                assert.strictEqual(queue.status.length, 0);
+                assert.strictEqual(queue.length, 0);
                 done();
             }).catch(done);
         });
@@ -145,7 +149,7 @@ define([
             var r = resources[4];
             queue.get(r.url).then(function (data) {
                 assert.deepEqual(data, r.response);
-                assert.strictEqual(queue.status.length, 0);
+                assert.strictEqual(queue.length, 0);
                 done();
             }).catch(done);
         });
@@ -157,7 +161,7 @@ define([
             }).catch(function (err) {
                 assert.isObject(err);
                 assert.strictEqual(err.message, 'client error');
-                assert.strictEqual(queue.status.length, 0);
+                assert.strictEqual(queue.length, 0);
                 done();
             });
         });
@@ -169,7 +173,7 @@ define([
             }).catch(function (err) {
                 assert.isObject(err);
                 assert.strictEqual(err.message, 'Max retries reached');
-                assert.strictEqual(queue.status.length, 0);
+                assert.strictEqual(queue.length, 0);
                 done();
             });
         });
@@ -181,7 +185,7 @@ define([
             }).catch(function (err) {
                 assert.isObject(err);
                 assert.strictEqual(err.message, 'Unsupported request method');
-                assert.strictEqual(queue.status.length, 0);
+                assert.strictEqual(queue.length, 0);
                 done();
             });
         });
@@ -189,62 +193,53 @@ define([
         test('make a DELETE', function (done) {
             var r = resources[8];
             queue.delete(r.url).then(function () {
-                assert.strictEqual(queue.status.length, 0);
+                assert.strictEqual(queue.length, 0);
                 done();
             }).catch(done);
         });
     });
 
-    suite('request strategies', function () {
+    suite('strategies', function () {
 
         var resources = [{
             url: 'mock.com/post-seq1',
             type: 'POST',
             data: {value: 'ps1'},
+            status: 200,
             delay: 50,
             response: {data: 'value ps1'}
         }, {
             url: 'mock.com/post-seq2',
             type: 'POST',
             data: {value: 'ps2'},
+            status: 200,
             delay: 20,
             response: {data: 'value ps2'}
         }, {
             url: 'mock.com/get-seq1',
             type: 'GET',
+            status: 200,
             delay: 10,
             response: {data: 'value at gs1'}
         }];
-
-        function requestMock(options) {
-            var resource = resources.filter(function (res) {
-                return res.url === options.url;
-            })[0];
-            assert.strictEqual(options.type, resource.type);
-            if (resource.request) {
-                assert.deepEqual(options.data, resource.request);
-            }
-            setTimeout(function () {
-                options.success(null, resource.response);
-            }, resource.delay);
-        }
 
         var queueParallel;
         var queueSequence;
         var queuePriority;
 
-        test('create queues', function () {
+        suiteSetup(function () {
+            var mock = requestMock(resources);
             var options = {
                 retryTimeout: 100,
                 maxRetries: 5
             };
-            queuePriority = new HttpRequestQueue(requestMock, Promise, options);
+            queuePriority = new HttpRequestQueue(mock, Promise, options);
 
             options.strategy = sequentialRun;
-            queueSequence = new HttpRequestQueue(requestMock, Promise, options);
+            queueSequence = new HttpRequestQueue(mock, Promise, options);
 
             options.strategy = parallelRun;
-            queueParallel = new HttpRequestQueue(requestMock, Promise, options);
+            queueParallel = new HttpRequestQueue(mock, Promise, options);
         });
 
         test('make all GETs and then POSTs in sequence', function (done) {
@@ -259,14 +254,14 @@ define([
                 assert.isTrue(get1done);
                 assert.strictEqual(data, post1.response);
                 post1done = true;
-                assert.strictEqual(queuePriority.status.length, 1);
+                assert.strictEqual(queuePriority.length, 1);
             }).catch(done);
             queuePriority.post(post2.url).then(function (data) {
                 assert.isTrue(post1done);
                 assert.isTrue(get1done);
                 assert.strictEqual(data, post2.response);
                 post2done = true;
-                assert.strictEqual(queuePriority.status.length, 0);
+                assert.strictEqual(queuePriority.length, 0);
                 done();
             }).catch(done);
             queuePriority.get(get1.url).then(function (data) {
@@ -274,7 +269,7 @@ define([
                 assert.isFalse(post2done);
                 assert.strictEqual(data, get1.response);
                 get1done = true;
-                assert.strictEqual(queuePriority.status.length, 2);
+                assert.strictEqual(queuePriority.length, 2);
             }).catch(done);
         });
 
@@ -290,7 +285,7 @@ define([
                 assert.isTrue(get1done);
                 assert.strictEqual(data, post1.response);
                 post1done = true;
-                assert.strictEqual(queueParallel.status.length, 0);
+                assert.strictEqual(queueParallel.length, 0);
                 done();
             }).catch(done);
             queueParallel.post(post2.url).then(function (data) {
@@ -298,14 +293,14 @@ define([
                 assert.isTrue(get1done);
                 assert.strictEqual(data, post2.response);
                 post2done = true;
-                assert.strictEqual(queueParallel.status.length, 1);
+                assert.strictEqual(queueParallel.length, 1);
             }).catch(done);
             queueParallel.get(get1.url).then(function (data) {
                 assert.isFalse(post1done);
                 assert.isFalse(post2done);
                 assert.strictEqual(data, get1.response);
                 get1done = true;
-                assert.strictEqual(queueParallel.status.length, 2);
+                assert.strictEqual(queueParallel.length, 2);
             }).catch(done);
         });
 
@@ -321,27 +316,157 @@ define([
                 assert.isFalse(get1done);
                 assert.strictEqual(data, post1.response);
                 post1done = true;
-                assert.strictEqual(queueSequence.status.length, 2);
+                assert.strictEqual(queueSequence.length, 2);
             }).catch(done);
             queueSequence.post(post2.url).then(function (data) {
                 assert.isTrue(post1done);
                 assert.isFalse(get1done);
                 assert.strictEqual(data, post2.response);
                 post2done = true;
-                assert.strictEqual(queueSequence.status.length, 1);
+                assert.strictEqual(queueSequence.length, 1);
             }).catch(done);
             queueSequence.get(get1.url).then(function (data) {
                 assert.isTrue(post1done);
                 assert.isTrue(post2done);
                 assert.strictEqual(data, get1.response);
                 get1done = true;
-                assert.strictEqual(queueSequence.status.length, 0);
+                assert.strictEqual(queueSequence.length, 0);
                 done();
             }).catch(done);
         });
     });
 
-    // test onQueueLengthChange event
-    // test filter
-    // test jQuery adapter
+    suite('events', function () {
+
+        var queue;
+
+        var resources = [{
+            url: 'mock.com/1',
+            type: 'GET',
+            delay: 0,
+            status: 200,
+            response: {data: 'value at 1'}
+        }, {
+            url: 'mock.com/2',
+            type: 'GET',
+            delay: 20,
+            status: 200,
+            response: {data: 'value at 2'}
+        }, {
+            url: 'mock.com/3',
+            type: 'GET',
+            delay: 30,
+            status: 200,
+            response: {data: 'value at 3'}
+        }];
+
+        suiteSetup(function () {
+            var mock = requestMock(resources);
+            var options = {
+                retryTimeout: 100,
+                maxRetries: 5
+            };
+            queue = new HttpRequestQueue(mock, Promise, options);
+        });
+
+        test('queue length change', function (done) {
+            var lengthSeq = [1, 2, 3, 2, 1, 0],
+                seq = 0;
+            queue.onQueueLengthChange(function (length) {
+                assert.strictEqual(length, lengthSeq[seq++]);
+                if (seq === lengthSeq.length) {
+                    done();
+                }
+            });
+            Promise.all(resources.map(function (r) {
+                return queue.get(r.url);
+            })).catch(function () {
+                assert.fail();
+            });
+        });
+    });
+
+    suite('filter', function () {
+
+        var queue;
+
+        var resources = [{
+            url: 'mock.com/1',
+            type: 'GET',
+            delay: 50,
+            status: 200,
+            response: {data: 'value at 1'}
+        }, {
+            url: 'mock.com/2',
+            type: 'GET',
+            delay: 25,
+            status: 200,
+            response: {data: 'value at 2'}
+        }];
+
+        suiteSetup(function () {
+            var mock = requestMock(resources);
+            var options = {
+                retryTimeout: 100,
+                maxRetries: 5
+            };
+            queue = new HttpRequestQueue(mock, Promise, options);
+        });
+
+        test('filter', function (done) {
+            Promise.all([
+                queue.get(resources[0].url).then(function () {
+                    done();
+                }),
+                queue.get(resources[1].url).then(function () {
+                    assert.strictEqual(queue.filter(function (req) {
+                        return req.method === resources[0].type && req.url === resources[0].url;
+                    }).length, 1);
+                })
+            ]).catch(function () {
+                assert.fail();
+            });
+        });
+    });
+
+    suite('jQuery adapter', function () {
+
+        var queue;
+
+        var resources = [{
+            url: 'https://avatars0.githubusercontent.com/u/2621975?v=3&s=460',
+            type: 'GET',
+        }, {
+            url: 'http://this.page.does.not.exist.com/',
+            type: 'GET'
+        }];
+
+        suiteSetup(function () {
+            var options = {
+                retryTimeout: 100,
+                maxRetries: 5
+            };
+            queue = new HttpRequestQueue(jqAdapter, Promise, options);
+        });
+
+        test('GET a page', function (done) {
+            var r = resources[0];
+            queue.get(r.url).then(function () {
+                assert.strictEqual(queue.length, 0);
+                done();
+            }).catch(done);
+        });
+
+        test('GET a page that does not exist', function (done) {
+            var r = resources[1];
+            queue.get(r.url).then(function () {
+                assert.fail();
+            }).catch(function (err) {
+                assert.isObject(err);
+                assert.strictEqual(err.message, 'Max retries reached');
+                assert.strictEqual(queue.length, 0);
+                done();
+            });
+        });
+    });
 });

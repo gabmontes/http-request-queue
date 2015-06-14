@@ -1,4 +1,6 @@
 define(function () {
+    'use strict';
+
     return function (tasks) {
         // send all but posts
         var selected = tasks.map(function (task) {

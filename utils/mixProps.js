@@ -1,4 +1,6 @@
 define(function () {
+    'use strict';
+
     return function (obj1, obj2) {
         for (var prop in obj2) {
             if (obj2.hasOwnProperty(prop)) {

@@ -120,6 +120,12 @@ define([
         this.dispatcher.on('queue-updated', callback);
     };
 
+    RetryQueue.prototype.filter = function (test) {
+        return this.queue.map(function (task) {
+            return task.item;
+        }).filter(test);
+    };
+
     Object.defineProperty(RetryQueue.prototype, 'length', {
         get: function () {
             return this.queue.length;
