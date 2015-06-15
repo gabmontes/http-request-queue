@@ -1,5 +1,28 @@
 {
   "name": "http-request-queue",
+  "description": "A module to manage HTTP requests and retry on error",
+  "main": "index.js",
+  "moduleType": "amd",
+  "license": "WTFPL",
+  "ignore": [
+    "**/.*",
+    "bower_components",
+    "node_modules",
+    "test"
+  ],
+  "keywords": [
+    "request",
+    "retry",
+    "queue",
+    "http"
+  ],
+  "authors": [
+    "gabriel@utoctadel.com.ar"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/gabmontes/http-request-queue.git"
+  },
   "dependencies": {
     "eventemitter2": "~0.4.14"
   },
