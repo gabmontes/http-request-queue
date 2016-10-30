@@ -4,8 +4,8 @@
     "test": "mocha-phantomjs -s webSecurityEnabled=false test/index.html"
   },
   "devDependencies": {
-    "mocha-phantomjs": "^3.5.3",
-    "phantomjs": "^1.9.17",
+    "mocha-phantomjs": "^4.1.0",
+    "phantomjs": "^2.1.7",
     "serve": "^1.4.0"
   }
 }
